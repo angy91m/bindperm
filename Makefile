@@ -7,6 +7,9 @@ SYSCONF  ?= /etc
 UNITDIR  ?= /etc/systemd/system
 DESTDIR  ?=
 
+# On Debian, bpftool lives in /usr/sbin, which is not in a normal user's PATH
+export PATH := $(PATH):/usr/sbin:/sbin
+
 BUILD := build
 
 # make STATIC=1 builds a binary that does not need libbpf at runtime
@@ -24,8 +27,10 @@ $(BUILD):
 $(BUILD)/vmlinux.h: | $(BUILD)
 	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $@
 
+ARCH_INC := /usr/include/$(shell uname -m)-linux-gnu
+
 $(BUILD)/bindperm.bpf.o: src/bindperm.bpf.c src/bindperm.h $(BUILD)/vmlinux.h
-	$(CLANG) -g -O2 -target bpf -I$(BUILD) -Isrc -c $< -o $@
+	$(CLANG) -g -O2 -target bpf -I$(BUILD) -Isrc -I$(ARCH_INC) -c $< -o $@
 
 $(BUILD)/bindperm.skel.h: $(BUILD)/bindperm.bpf.o
 	$(BPFTOOL) gen skeleton $< > $@
@@ -38,7 +43,7 @@ $(BUILD)/bindperm.service: systemd/bindperm.service.in | $(BUILD)
 	sed 's|@SBINDIR@|$(SBINDIR)|g; s|@SYSCONF@|$(SYSCONF)|g' $< > $@
 
 check-requirements:
-	sh scripts/check-requirements.sh
+	bash scripts/check-requirements.sh
 
 # Installs binary, unit and, only if absent, the default configuration.
 # Does not enable or start the service.

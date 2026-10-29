@@ -2,6 +2,8 @@
 # Pre-flight checks for bindperm. Run as root for the full set of checks.
 # Exit code: 0 = OK (possibly with warnings), 1 = at least one hard failure.
 
+PATH="$PATH:/usr/sbin:/sbin"
+
 fail=0
 ok()   { echo "[ OK ] $*"; }
 warn() { echo "[WARN] $*"; }
@@ -87,7 +89,7 @@ fi
 
 echo
 if [ $fail -eq 0 ]; then
-    echo "Result: requirements look OK. Next: make && sudo ./bindperm --check"
+    echo "Result: requirements look OK. Next: make && sudo make install"
 else
     echo "Result: at least one requirement is NOT satisfied."
 fi

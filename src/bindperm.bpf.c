@@ -72,16 +72,20 @@ static __always_inline bool task_allows(struct task_struct *t, __u16 port,
 	       subject_allows(KIND_GID, gid, port, proto, ext);
 }
 
-/* Unprivileged-port threshold of the caller's network namespace. */
+/* Unprivileged-port threshold of the caller's network namespace.
+ * The sysctl net.ipv4.ip_unprivileged_port_start is stored in the kernel
+ * field netns_ipv4.sysctl_ip_prot_sock. */
 static __always_inline int unpriv_port_start(struct task_struct *t)
 {
 	struct net *net = BPF_CORE_READ(t, nsproxy, net_ns);
 	if (!net)
 		return DEFAULT_UNPRIV_PORT_START;
-	/* Field missing on very old kernels: fall back to the historical default. */
-	if (!bpf_core_field_exists(net->ipv4.sysctl_ip_unprivileged_port_start))
+
+	/* Field missing (kernel built without CONFIG_SYSCTL, or very old): use the default. */
+	if (!bpf_core_field_exists(net->ipv4.sysctl_ip_prot_sock))
 		return DEFAULT_UNPRIV_PORT_START;
-	return BPF_CORE_READ(net, ipv4.sysctl_ip_unprivileged_port_start);
+
+	return BPF_CORE_READ(net, ipv4.sysctl_ip_prot_sock);
 }
 
 static __always_inline int check(struct bpf_sock_addr *ctx)

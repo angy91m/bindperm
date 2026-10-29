@@ -493,13 +493,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	/* BPF_F_ALLOW_MULTI: do not prevent other bind programs on child cgroups. */
-	LIBBPF_OPTS(bpf_link_create_opts, lopts, .flags = BPF_F_ALLOW_MULTI);
+	/* Link-based attach is always "multi" (other programs on child cgroups keep
+	 * running), and BPF_LINK_CREATE rejects any flags, so none are passed. */
 	int l4 = bpf_link_create(bpf_program__fd(skel->progs.bindperm_bind4), cg,
-				 BPF_CGROUP_INET4_BIND, &lopts);
+				 BPF_CGROUP_INET4_BIND, NULL);
 	if (l4 < 0) { logmsg(L_ERR, "attach bind4 failed: %s", strerror(-l4)); return 1; }
 	int l6 = bpf_link_create(bpf_program__fd(skel->progs.bindperm_bind6), cg,
-				 BPF_CGROUP_INET6_BIND, &lopts);
+				 BPF_CGROUP_INET6_BIND, NULL);
 	if (l6 < 0) { logmsg(L_ERR, "attach bind6 failed: %s", strerror(-l6)); return 1; }
 
 	/* No SA_RESTART: poll() must be interrupted by signals. */
