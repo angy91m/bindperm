@@ -1,0 +1,16 @@
+[Unit]
+Description=Low-port bind() permissions for users and groups (eBPF)
+Documentation=https://github.com/angy91m/bindperm
+After=local-fs.target nss-user-lookup.target
+
+[Service]
+# Validate config and load (without attaching) the eBPF programs before each start
+ExecStartPre=@SBINDIR@/bindperm -c @SYSCONF@/bindperm.conf -C
+ExecStart=@SBINDIR@/bindperm -c @SYSCONF@/bindperm.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+LimitMEMLOCK=infinity
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
