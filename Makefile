@@ -10,7 +10,7 @@ DESTDIR  ?=
 # On Debian, bpftool lives in /usr/sbin, which is not in a normal user's PATH
 export PATH := $(PATH):/usr/sbin:/sbin
 
-BUILD := build
+BUILD ?= build
 
 # make STATIC=1 builds a binary that does not need libbpf at runtime
 ifeq ($(STATIC),1)
