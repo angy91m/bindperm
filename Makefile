@@ -29,7 +29,17 @@ $(BUILD)/vmlinux.h: | $(BUILD)
 
 ARCH_INC := /usr/include/$(shell uname -m)-linux-gnu
 
-$(BUILD)/bindperm.bpf.o: src/bindperm.bpf.c src/bindperm.h $(BUILD)/vmlinux.h
+# make NOBTF=1 builds the variant for kernels without BTF (no vmlinux.h needed)
+NOBTF ?= 0
+ifeq ($(NOBTF),1)
+BPF_SRC  := src/bindperm_nobtf.bpf.c
+BPF_DEPS :=
+else
+BPF_SRC  := src/bindperm.bpf.c
+BPF_DEPS := $(BUILD)/vmlinux.h
+endif
+
+$(BUILD)/bindperm.bpf.o: $(BPF_SRC) src/bindperm.h $(BPF_DEPS) | $(BUILD)
 	$(CLANG) -g -O2 -target bpf -I$(BUILD) -Isrc -I$(ARCH_INC) -c $< -o $@
 
 $(BUILD)/bindperm.skel.h: $(BUILD)/bindperm.bpf.o

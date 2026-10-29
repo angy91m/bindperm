@@ -21,9 +21,14 @@ else
     bad "kernel $kver is too old (cgroup bind hooks need >= 4.17)"
 fi
 
-# --- BTF (required for CO-RE) --------------------------------------------
-[ -r /sys/kernel/btf/vmlinux ] && ok "BTF available (/sys/kernel/btf/vmlinux)" \
-                               || bad "BTF missing: kernel built without CONFIG_DEBUG_INFO_BTF"
+# --- BTF (required for CO-RE, not for the NOBTF variant) -----------------
+if [ -r /sys/kernel/btf/vmlinux ]; then
+    ok "BTF available (/sys/kernel/btf/vmlinux)"
+elif [ "${NOBTF:-0}" = 1 ]; then
+    warn "no BTF: using the NOBTF variant (real uid, cgroup-only ':r')"
+else
+    bad "BTF missing: build with NOBTF=1 for a reduced variant, or use a kernel with CONFIG_DEBUG_INFO_BTF"
+fi
 
 # --- cgroup v2 ------------------------------------------------------------
 if [ "$(stat -fc %T /sys/fs/cgroup 2>/dev/null)" = "cgroup2fs" ]; then
@@ -38,10 +43,13 @@ if   [ -r /proc/config.gz ];            then cfg=$(zcat /proc/config.gz)
 elif [ -r "/boot/config-$(uname -r)" ]; then cfg=$(cat "/boot/config-$(uname -r)")
 fi
 if [ -n "$cfg" ]; then
-    for opt in CONFIG_BPF_SYSCALL CONFIG_CGROUP_BPF CONFIG_DEBUG_INFO_BTF CONFIG_BPF_JIT; do
+    for opt in CONFIG_BPF_SYSCALL CONFIG_CGROUP_BPF CONFIG_BPF_JIT; do
         if grep -q "^$opt=y" <<<"$cfg"; then ok "$opt=y"
         else bad "$opt is not enabled"; fi
     done
+    if grep -q "^CONFIG_DEBUG_INFO_BTF=y" <<<"$cfg"; then ok "CONFIG_DEBUG_INFO_BTF=y"
+    elif [ "${NOBTF:-0}" = 1 ]; then warn "CONFIG_DEBUG_INFO_BTF is not enabled (NOBTF variant)"
+    else bad "CONFIG_DEBUG_INFO_BTF is not enabled"; fi
 else
     warn "kernel config not readable (/proc/config.gz or /boot/config-*): skipped"
 fi

@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2026 Angelo Burzi angelo.burzi@biancofiore.art
- */
-
+/* Copyright (C) 2026 Angelo Burzi angelo.burzi@biancofiore.art */
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
@@ -11,7 +8,6 @@
 
 #define MAX_DEPTH     24   /* max ancestor processes to walk */
 #define MAX_CG_LEVEL  16   /* max ancestor cgroups to check */
-#define DEFAULT_UNPRIV_PORT_START 1024
 
 #define IP_PROTO_TCP   6
 #define IP_PROTO_UDP  17
@@ -76,22 +72,11 @@ static __always_inline bool task_allows(struct task_struct *t, __u16 port,
 	       subject_allows(KIND_GID, gid, port, proto, ext);
 }
 
-/* Unprivileged-port threshold of the caller's network namespace.
- * The sysctl net.ipv4.ip_unprivileged_port_start is stored in the kernel
- * field netns_ipv4.sysctl_ip_prot_sock. */
-static __always_inline int unpriv_port_start(struct task_struct *t)
-{
-	struct net *net = BPF_CORE_READ(t, nsproxy, net_ns);
-	if (!net)
-		return DEFAULT_UNPRIV_PORT_START;
-
-	/* Field missing (kernel built without CONFIG_SYSCTL, or very old): use the default. */
-	if (!bpf_core_field_exists(net->ipv4.sysctl_ip_prot_sock))
-		return DEFAULT_UNPRIV_PORT_START;
-
-	return BPF_CORE_READ(net, ipv4.sysctl_ip_prot_sock);
-}
-
+/*
+ * The unprivileged-port threshold (net.ipv4.ip_unprivileged_port_start) is
+ * deliberately NOT consulted: returning ALLOW_NO_CAP for a port that needs no
+ * capability is a no-op, so the rules alone decide.
+ */
 static __always_inline int check(struct bpf_sock_addr *ctx)
 {
 	__u16 port = bpf_ntohs(ctx->user_port);
@@ -108,10 +93,6 @@ static __always_inline int check(struct bpf_sock_addr *ctx)
 		return ALLOW;
 
 	struct task_struct *t = (struct task_struct *)bpf_get_current_task();
-
-	/* Not a privileged port in this netns: nothing to grant. */
-	if (port >= unpriv_port_start(t))
-		return ALLOW;
 
 	/* 1. The calling process itself. */
 	if (task_allows(t, port, proto, false))

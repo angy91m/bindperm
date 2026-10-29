@@ -29,14 +29,18 @@ On Linux, binding a port below `net.ipv4.ip_unprivileged_port_start` (1024 by de
 
 The eBPF program is attached to `cgroup/bind4` and `cgroup/bind6` on `/sys/fs/cgroup`, so it covers every process on the system. For each `bind()`:
 
-1. If the port is `0` (ephemeral), the protocol is not TCP/UDP, or the port is not below the caller's network namespace threshold, it returns the normal verdict (`1`). Nothing changes.
-2. Otherwise it looks up rules for the caller's effective UID and GID. A match returns verdict `3` (allow and skip the capability check).
-3. Rules with the `:r` flag also match when:
-   - an ancestor in the process tree (`real_parent`, up to 24 levels) has a matching UID or GID, or
-   - the caller lives in a cgroup below `/sys/fs/cgroup/user.slice/user-UID.slice` of a matching user (up to 16 cgroup levels). This is what makes `:r` work for rootless Podman, where `conmon` and container processes are re-parented and run with subordinate UIDs.
-4. No match: normal verdict. **bindperm never denies anything, it only grants.**
+1. If the port is `0` (ephemeral) or the protocol is not TCP/UDP, it returns
+   the normal verdict (`1`). Nothing changes.
+2. Otherwise it looks up rules for the caller's effective UID and GID. A match
+   returns verdict `3` (allow and skip the capability check).
+3. No match: normal verdict. **bindperm never denies anything, it only grants.**
 
-The threshold is read from the process's own network namespace on every call, so it follows runtime sysctl changes and containers with their own namespace.
+The `net.ipv4.ip_unprivileged_port_start` threshold is deliberately not read:
+granting the "skip capability check" verdict on a port that needs no capability
+is a no-op, so the rules alone decide. This also makes the program independent
+of the kernel's internal field layout for that sysctl, and it works unchanged
+with a threshold raised or lowered at runtime, or different in a container's
+network namespace.
 
 ## Requirements
 
@@ -91,7 +95,8 @@ include PATH_OR_GLOB
 | `subject` | user name, numeric UID, `@group` or `@GID` |
 | `r` | also apply to descendant processes and the user's cgroup |
 
-Only ports below the network namespace threshold are affected, so `0` means "any privileged port".
+`0` means any port. Granting a port that does not require a privilege has no
+effect, so in practice `0` means "any privileged port".
 
 ### Groups
 
@@ -174,7 +179,7 @@ If the first test fails with `Permission denied` while the service is running an
 ## Podman
 
 - Publishing a port from the host (`podman run -p 443:8080 ...`) is done by `pasta` or `rootlessport` running with your real UID, so a plain rule (`443:youruser`) is usually enough.
-- A process that calls `bind(80)` *inside* a container uses the container's network namespace threshold. bindperm reads it per call, and with `:r` the cgroup ancestry check covers container processes started from the user's session.
+- A process that calls `bind(80)` *inside* a container uses the container's network namespace threshold. With :r the cgroup ancestry check covers container processes started from the user’s session.
 - Alternatively, for the inside-the-container case only, Podman can set the sysctl per container: `podman run --sysctl net.ipv4.ip_unprivileged_port_start=0 ...`.
 
 Container behaviour depends on how Podman is started (login session, systemd user units, Quadlet), because the `:r` cgroup check relies on `user.slice/user-UID.slice`. **Test your own setup.**
