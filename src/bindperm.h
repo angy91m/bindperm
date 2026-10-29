@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (C) 2026 Angelo Burzi angelo.burzi@biancofiore.art */
 /* Shared between the eBPF program and the userspace loader. */
 #ifndef BINDPERM_H
 #define BINDPERM_H

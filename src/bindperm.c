@@ -1,5 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (C) 2026 Angelo Burzi angelo.burzi@biancofiore.art
+ *
+ *
  * bindperm - grant low-port bind() to users/groups (and optionally their
  * descendants) using a cgroup eBPF program.
  *
