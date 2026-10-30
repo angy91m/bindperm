@@ -22,6 +22,8 @@ On Linux, binding a port below `net.ipv4.ip_unprivileged_port_start` (1024 by de
 | `sysctl ip_unprivileged_port_start=0` | global to the network namespace, for everyone |
 | `authbind` | wrapper per process, awkward with containers (Podman) |
 | SELinux | powerful, but a whole policy framework to adopt |
+| Firewall redirect (`nftables`/`iptables` `REDIRECT` or `DNAT`, e.g. 80 → 8080) | the service must listen on a high port, which any user can bind, so nothing ties the low port to a specific user; rules are global and managed separately from the service; by default `PREROUTING` does not match locally generated traffic (loopback), so you need extra `OUTPUT` rules; the application sees a different port than the one clients use, which breaks self-referencing URLs and redirects |
+| `firewalld` forward-port / router or container-host port forwarding | same limits as above, plus the mapping lives in the firewall or router configuration instead of next to the service; not per user, and the forwarded high port is still open to whoever binds it first |
 
 `bindperm` is a small daemon that attaches an eBPF program to the root cgroup. On every `bind()` it decides whether the caller is covered by a rule and, if so, tells the kernel to skip the `CAP_NET_BIND_SERVICE` check for that single call.
 
@@ -190,7 +192,6 @@ Container behaviour depends on how Podman is started (login session, systemd use
 |---|---|
 | `missing tool: bpftool` | on Debian it is in `/usr/sbin`; install the `bpftool` package and make sure the Makefile/script `PATH` line is present |
 | `fatal error: 'asm/types.h' not found` | Debian multiarch headers: the Makefile passes `-I/usr/include/$(uname -m)-linux-gnu` |
-| `no member named 'sysctl_ip_unprivileged_port_start'` | the kernel struct field is `sysctl_ip_prot_sock` in `struct netns_ipv4` (check with `grep -n sysctl_ip_prot_sock build/vmlinux.h`) |
 | `must be owned by root...` / `directory ... must be owned by root` | configuration or one of its parent directories fails the security checks |
 | `failed to load eBPF programs` | verifier or CO-RE problem: run `sudo ./build/bindperm -C -v` and read the log |
 | `attach bind4 failed: Invalid argument` | `bpf_link_create()` must be called without flags (link-based attach is always multi); do not pass `BPF_F_ALLOW_MULTI` |
