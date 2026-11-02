@@ -22,10 +22,10 @@ else
 fi
 
 # --- BTF (required for CO-RE, not for the NOBTF variant) -----------------
-if [ -r /sys/kernel/btf/vmlinux ]; then
-    ok "BTF available (/sys/kernel/btf/vmlinux)"
-elif [ "${NOBTF:-0}" = 1 ]; then
+if [ "${NOBTF:-0}" = 1 ]; then
     warn "no BTF: using the NOBTF variant (real uid, cgroup-only ':r')"
+elif [ -r /sys/kernel/btf/vmlinux ]; then
+    ok "BTF available (/sys/kernel/btf/vmlinux)"
 else
     bad "BTF missing: build with NOBTF=1 for a reduced variant, or use a kernel with CONFIG_DEBUG_INFO_BTF"
 fi
