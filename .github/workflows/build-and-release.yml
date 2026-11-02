@@ -10,13 +10,24 @@ on:
         description: 'Tag della release (es. v1.0.0)'
         required: true
         type: string
+  permissions:
+    contents: write
 jobs:
   build:
     name: Build per ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [amd64, arm64]
+        include:
+        - arch: amd64
+          nobtf: ''
+          artifact_name: bindperm-linux-x64.deb
+        - arch: arm64
+          nobtf: ''
+          artifact_name: bindperm-linux-arm64.deb
+        - arch: arm64
+          nobtf: '1'
+          artifact_name: bindperm-nobtf-linux-arm64.deb
     steps:
     - name: Checkout del codice
       uses: actions/checkout@v4
@@ -30,18 +41,12 @@ jobs:
           export LIBBPF_PREFIX=/opt/libbpf
           export CLANG=clang-16
           export BPFTOOL=/usr/local/sbin/bpftool
-          if [[ "${{ matrix.arch }}" == 'arm64' ]]; then
-            export NOBTF=1
-          fi
-          make check-requirements
-          make
-          # SOSTITUISCI QUESTA RIGA con il tuo comando effettivo per creare il .deb
-          # (es. make deb, dpkg-buildpackage, fpm, ecc.)
-          # make deb
+          export NOBTF='${{ matrix.nobtf }}'
+          make check-requirements && make
           chown -R $(id -u):$(id -g) /work
         "
     - name: Trova files
-      run: ls -la .
+      run: ls -la build
     # - name: Crea la GitHub Release
     #   uses: softprops/action-gh-release@v2
     #   with:
