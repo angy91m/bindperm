@@ -42,7 +42,7 @@ Architecture: $arch
 Maintainer: Angelo Burzi <angelo.burzi@biancofiore.art>
 Section: admin
 Priority: optional
-Depends: libc6, libbpf1, libelf1t64, zlib1g
+Depends: libc6, libbpf1, libelf1t64 | libelf1, zlib1g
 Homepage: https://github.com/angy91m/bindperm
 Description: Low-port bind() permissions for users and groups (eBPF)
  Grants bind() on privileged ports to specific Linux users and groups,
