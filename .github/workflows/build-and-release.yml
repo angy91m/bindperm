@@ -27,6 +27,9 @@ jobs:
     - name: Build del codice
       run: |
         docker run --rm -v ${{ github.workspace }}:/work debian-builder-${{ matrix.arch }} bash -c "
+          export LIBBPF_PREFIX=/opt/libbpf
+          export CLANG=clang-16
+          export BPFTOOL=/usr/local/sbin/bpftool
           if [[ "${{ matrix.arch }}" == 'arm64' ]]; then
             export NOBTF=1
           fi
