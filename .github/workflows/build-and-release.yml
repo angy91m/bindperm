@@ -69,6 +69,8 @@ jobs:
     name: Publish Pre-Release
     needs: build
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ${{ inputs.version || '0.1.0' }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -87,29 +89,13 @@ jobs:
       run: |
         # 1. Genera il tag univoco
         TAG_NAME="v-test-$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::7}"
-        BASE_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}"
+        # BASE_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}"
 
-        # 2. Crea la lista Markdown dei link scansionando automaticamente tutti i file scaricati
-        NOTES_FILE="release_notes.md"
-        echo "### 📦 Download Build Dirette" > "$NOTES_FILE"
-        echo "" >> "$NOTES_FILE"
-
-        for file in all-artifacts/*; do
-          if [ -f "$file" ]; then
-            FILENAME=$(basename "$file")
-            echo "- 📥 [Scarica ${FILENAME}](${BASE_URL}/${FILENAME})" >> "$NOTES_FILE"
-          fi
-        done
-
-        echo "" >> "$NOTES_FILE"
-        echo "---" >> "$NOTES_FILE"
-
-        # 3. Crea la release allegando tutti i file presenti in all-artifacts/
+        # 2. Crea la release allegando tutti i file presenti in all-artifacts/
         gh release create "$TAG_NAME" all-artifacts/* \
           --target test \
           --prerelease \
           --title "Test Build: $TAG_NAME" \
-          --notes-file "$NOTES_FILE" \
           --generate-notes
     # - name: Crea la GitHub Release
     #   uses: softprops/action-gh-release@v2
