@@ -23,12 +23,12 @@ jobs:
         - arch: amd64
           nobtf: ''
           artifact_name: bindperm-linux-x64.deb
-        - arch: arm64
-          nobtf: ''
-          artifact_name: bindperm-linux-arm64.deb
-        - arch: arm64
-          nobtf: '1'
-          artifact_name: bindperm-nobtf-linux-arm64.deb
+        # - arch: arm64
+        #   nobtf: ''
+        #   artifact_name: bindperm-linux-arm64.deb
+        # - arch: arm64
+        #   nobtf: '1'
+        #   artifact_name: bindperm-nobtf-linux-arm64.deb
     steps:
     - name: Checkout del codice
       uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
           chown -R $(id -u):$(id -g) /work
         "
     - name: Trova files
-      run: ls -la build
+      run: ls -la ./build
     # - name: Crea la GitHub Release
     #   uses: softprops/action-gh-release@v2
     #   with:
