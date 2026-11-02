@@ -62,15 +62,13 @@ jobs:
     - name: Carica artefatto temporaneo
       uses: actions/upload-artifact@v4
       with:
-        name: build-$APP_VERSION-${{ matrix.arch }}
+        name: build-${{ inputs.version || '0.1.0' }}-${{ matrix.arch }}
         path: dist/${{ matrix.artifact_name }}
         if-no-files-found: error
   prerelease:
     name: Publish Pre-Release
     needs: build
     runs-on: ubuntu-latest
-    env:
-      APP_VERSION: ${{ inputs.version || '0.1.0' }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
