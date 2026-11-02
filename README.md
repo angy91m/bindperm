@@ -18,7 +18,7 @@ On Linux, binding a port below `net.ipv4.ip_unprivileged_port_start` (1024 by de
 | Approach | Limitation |
 |---|---|
 | `setcap` on a binary | per binary, lost on updates, not per user |
-| systemd `AmbientCapabilities=` | per service, not per user |
+| systemd `AmbientCapabilities=` | per service, not per user; not working with podman rootless |
 | `sysctl ip_unprivileged_port_start=0` | global to the network namespace, for everyone |
 | `authbind` | wrapper per process, awkward with containers (Podman) |
 | SELinux | powerful, but a whole policy framework to adopt |
