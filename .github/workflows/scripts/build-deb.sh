@@ -28,7 +28,6 @@ chmod 644 "$root/usr/lib/systemd/system/bindperm.service"
 
 install -D -m644 etc/bindperm.conf "$root/etc/bindperm.conf"
 install -d -m755 "$root/etc/bindperm.d"
-install -m644 etc/bindperm.d/example.conf.disabled "$root/etc/bindperm.d/"
 
 install -D -m644 README.md "$root/usr/share/doc/bindperm/README.md"
 install -D -m644 LICENSE   "$root/usr/share/doc/bindperm/copyright"
