@@ -64,7 +64,9 @@ if [ -r /sys/kernel/security/lockdown ]; then
 fi
 
 # --- Build tools ----------------------------------------------------------
-for t in clang bpftool make cc pkg-config; do
+CLANG="${CLANG:-clang}"
+BPFTOOL="${BPFTOOL:-bpftool}"
+for t in "$CLANG" "$BPFTOOL" make cc pkg-config; do
     command -v "$t" >/dev/null && ok "found $t" || bad "missing tool: $t"
 done
 if pkg-config --exists libbpf 2>/dev/null; then
@@ -77,8 +79,8 @@ pkg-config --exists libelf 2>/dev/null && ok "libelf" || bad "libelf development
 pkg-config --exists zlib   2>/dev/null && ok "zlib"   || bad "zlib development files not found"
 
 # --- Runtime probes (root + bpftool) -------------------------------------
-if [ "$(id -u)" -eq 0 ] && command -v bpftool >/dev/null; then
-    probe=$(bpftool feature probe kernel 2>/dev/null)
+if [ "$(id -u)" -eq 0 ] && command -v "$BPFTOOL" >/dev/null; then
+    probe=$("$BPFTOOL" feature probe kernel 2>/dev/null)
     grep -q "program_type cgroup_sock_addr is available" <<<"$probe" \
         && ok "program type cgroup_sock_addr available" \
         || bad "program type cgroup_sock_addr NOT available"
