@@ -39,14 +39,28 @@ BPF_SRC  := src/bindperm.bpf.c
 BPF_DEPS := $(BUILD)/vmlinux.h
 endif
 
+CFLAGS        ?= -O2 -Wall
+CPPFLAGS      ?=
+LIBBPF_PREFIX ?=
+
+ifneq ($(LIBBPF_PREFIX),)
+# libbpf >= 1.0 installed elsewhere, linked statically (NSS stays dynamic)
+CPPFLAGS    += -I$(LIBBPF_PREFIX)/include
+LIBBPF_LIBS := $(LIBBPF_PREFIX)/lib/libbpf.a -lelf -lz
+else
+LIBBPF_LIBS := -lbpf -lelf -lz
+endif
+
+.DELETE_ON_ERROR:
+
 $(BUILD)/bindperm.bpf.o: $(BPF_SRC) src/bindperm.h $(BPF_DEPS) | $(BUILD)
-	$(CLANG) -g -O2 -target bpf -I$(BUILD) -Isrc -I$(ARCH_INC) -c $< -o $@
+	$(CLANG) -g -O2 -target bpf $(CPPFLAGS) -I$(BUILD) -Isrc -I$(ARCH_INC) -c $< -o $@
 
 $(BUILD)/bindperm.skel.h: $(BUILD)/bindperm.bpf.o
 	$(BPFTOOL) gen skeleton $< > $@
 
 $(BUILD)/bindperm: src/bindperm.c src/bindperm.h $(BUILD)/bindperm.skel.h
-	$(CC) -O2 -Wall -I$(BUILD) -Isrc $(LDFLAGS) -o $@ src/bindperm.c -lbpf -lelf -lz
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD) -Isrc $(LDFLAGS) -o $@ src/bindperm.c $(LIBBPF_LIBS)
 
 # Unit template: substitute the install path of the binary
 $(BUILD)/bindperm.service: systemd/bindperm.service.in | $(BUILD)
