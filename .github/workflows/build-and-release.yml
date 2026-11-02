@@ -1,0 +1,44 @@
+name: Build and Release Debian Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag della release (es. v1.0.0)'
+        required: true
+        type: string
+jobs:
+  build:
+    name: Build per ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+    - name: Checkout del codice
+      uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    - name: Build dell'immagine Docker
+      run: docker build --platform linux/${{ matrix.arch }} -t debian-builder-${{ matrix.arch }} .
+    - name: Build del codice
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/work debian-builder-${{ matrix.arch }} bash -c "
+          if [[ "${{ matrix.arch }}" == 'arm64' ]]; then
+            export NOBTF=1
+          fi
+          make check-requirements
+          make
+          # SOSTITUISCI QUESTA RIGA con il tuo comando effettivo per creare il .deb
+          # (es. make deb, dpkg-buildpackage, fpm, ecc.)
+          # make deb
+          chown -R $(id -u):$(id -g) /work
+        "
+    - name: Trova files
+      run: ls -la .
+    # - name: Crea la GitHub Release
+    #   uses: softprops/action-gh-release@v2
+    #   with:
+    #     tag_name: ${{ github.event.inputs.tag_name }}
+    #     files: ${{ env.deb_path }}
+    #     generate_release_notes: true
