@@ -1,0 +1,104 @@
+name: Build and Release Debian Package
+on:
+  push:
+    branches:
+    - test
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (es. 1.0.0)'
+        required: true
+        type: string
+        default: 0.1.0
+permissions:
+  contents: write
+jobs:
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ${{ case( matrix.arch == 'arm64', 'ubuntu-24.04-arm', 'ubuntu-24.04') }}
+    env:
+      APP_VERSION: ${{ inputs.tag_name || '0.1.0' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - arch: amd64
+          nobtf: ''
+          artifact_name: bindperm-v${{ inputs.tag_name || '0.1.0' }}-linux-x64.deb
+        - arch: arm64
+          nobtf: ''
+          artifact_name: bindperm-v${{ inputs.tag_name || '0.1.0' }}-linux-arm64.deb
+        - arch: arm64
+          nobtf: '1'
+          artifact_name: bindperm-v${{ inputs.tag_name || '0.1.0' }}-nobtf-linux-arm64.deb
+    steps:
+    - name: Code checkout
+      uses: actions/checkout@v4
+    - name: Build Docker image
+      run: docker build --platform linux/${{ matrix.arch }} -t debian-builder-${{ matrix.arch }} .
+    - name: Build code
+      run: |
+        docker run --privileged --rm \
+        -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
+        -v /sys/fs/bpf:/sys/fs/bpf \
+        -v /boot:/boot:ro \
+        -v ${{ github.workspace }}:/work \
+        debian-builder-${{ matrix.arch }} bash -c "
+          export LIBBPF_PREFIX=/opt/libbpf
+          export CLANG=clang-16
+          export BPFTOOL=/usr/local/sbin/bpftool
+          export NOBTF='${{ matrix.nobtf }}'
+          make check-requirements && make
+          chown -R $(id -u):$(id -g) /work
+        "
+    - name: Build deb
+      run: |
+        mkdir -p dist
+        .github/workflows/scripts/build-deb.sh "$APP_VERSION" "${{ matrix.arch }}" \
+          "$(pwd)/build/bindperm" "${{ matrix.artifact_name }}"
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-${{ matrix.artifact_name }}
+        path: dist/${{ matrix.artifact_name }}
+        if-no-files-found: error
+  prerelease:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: all-artifacts
+        pattern: build-*
+        merge-multiple: true
+    - name: Publish release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+      run: |
+        # 1. Generate tag_name
+        if [ -z "${{ inputs.tag_name }}" ]; then
+          TAG_NAME="v-test-$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::7}"
+        else
+          TAG_NAME="v${{ inputs.tag_name }}"
+        fi
+
+        PRE_RELEASE=
+        TITLE_TEST=
+        if [ '${{ github.ref_name }}' = test ]; then
+          PRE_RELEASE="--prerelease"
+          TITLE_TEST='Test '
+        fi
+
+        # 2. Create release attaching all-artifacts/^
+        gh release create "$TAG_NAME" all-artifacts/* \
+          --target '${{ github.ref_name }}' \
+          $PRE_RELEASE \
+          --title "${TITLE_TEST}Build: $TAG_NAME" \
+          --generate-notes
