@@ -9,4 +9,7 @@ RUN wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && bash /tmp/llvm.sh 16
 RUN git clone --recurse-submodules --branch v7.5.0 https://github.com/libbpf/bpftool /src/bpftool \
  && make -C /src/bpftool/libbpf/src BUILD_STATIC_ONLY=y PREFIX=/opt/libbpf LIBDIR=/opt/libbpf/lib install \
  && make -C /src/bpftool/src install
+ENV PKG_CONFIG_PATH="/opt/libbpf/lib/pkgconfig:${PKG_CONFIG_PATH}"
+ENV CPATH="/opt/libbpf/include:${CPATH}"
+ENV LIBRARY_PATH="/opt/libbpf/lib:${LIBRARY_PATH}"
 WORKDIR /work
