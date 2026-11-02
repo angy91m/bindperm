@@ -7,15 +7,18 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag della release (es. v1.0.0)'
+        description: 'Tag della release (es. 1.0.0)'
         required: true
         type: string
+        default: 0.1.0
 permissions:
   contents: write
 jobs:
   build:
     name: Build per ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ${{ inputs.version || '0.1.0' }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,8 +54,63 @@ jobs:
           make check-requirements && make
           chown -R $(id -u):$(id -g) /work
         "
-    - name: Trova files
-      run: ls -la ./build
+    - name: Build deb
+      run: |
+        mkdir -p dist
+        .github/workflows/scripts/build-deb.sh "$APP_VERSION" "${{ matrix.arch }}" \
+          "$(pwd)/build/bindperm" "${{ matrix.artifact_name }}"
+    - name: Carica artefatto temporaneo
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-$APP_VERSION-${{ matrix.arch }}
+        path: dist/${{ matrix.artifact_name }}
+        if-no-files-found: error
+  prerelease:
+    name: Publish Pre-Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Scarica tutti gli artefatti
+      uses: actions/download-artifact@v4
+      with:
+        path: all-artifacts
+        pattern: build-*
+        merge-multiple: true
+    - name: Costruisci note con link dinamici e pubblica
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+      run: |
+        # 1. Genera il tag univoco
+        TAG_NAME="v-test-$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::7}"
+        BASE_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}"
+
+        # 2. Crea la lista Markdown dei link scansionando automaticamente tutti i file scaricati
+        NOTES_FILE="release_notes.md"
+        echo "### 📦 Download Build Dirette" > "$NOTES_FILE"
+        echo "" >> "$NOTES_FILE"
+
+        for file in all-artifacts/*; do
+          if [ -f "$file" ]; then
+            FILENAME=$(basename "$file")
+            echo "- 📥 [Scarica ${FILENAME}](${BASE_URL}/${FILENAME})" >> "$NOTES_FILE"
+          fi
+        done
+
+        echo "" >> "$NOTES_FILE"
+        echo "---" >> "$NOTES_FILE"
+
+        # 3. Crea la release allegando tutti i file presenti in all-artifacts/
+        gh release create "$TAG_NAME" all-artifacts/* \
+          --target test \
+          --prerelease \
+          --title "Test Build: $TAG_NAME" \
+          --notes-file "$NOTES_FILE" \
+          --generate-notes
     # - name: Crea la GitHub Release
     #   uses: softprops/action-gh-release@v2
     #   with:
