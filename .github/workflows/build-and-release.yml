@@ -18,7 +18,7 @@ jobs:
     name: Build per ${{ matrix.arch }}
     runs-on: ubuntu-latest
     env:
-      APP_VERSION: ${{ inputs.version || '0.1.0' }}
+      APP_VERSION: ${{ inputs.tag_name || '0.1.0' }}
     strategy:
       fail-fast: false
       matrix:
@@ -26,12 +26,12 @@ jobs:
         - arch: amd64
           nobtf: ''
           artifact_name: bindperm-linux-x64.deb
-        # - arch: arm64
-        #   nobtf: ''
-        #   artifact_name: bindperm-linux-arm64.deb
-        # - arch: arm64
-        #   nobtf: '1'
-        #   artifact_name: bindperm-nobtf-linux-arm64.deb
+        - arch: arm64
+          nobtf: ''
+          artifact_name: bindperm-linux-arm64.deb
+        - arch: arm64
+          nobtf: '1'
+          artifact_name: bindperm-nobtf-linux-arm64.deb
     steps:
     - name: Checkout del codice
       uses: actions/checkout@v4
@@ -85,19 +85,21 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REPO: ${{ github.repository }}
       run: |
-        # 1. Genera il tag univoco
-        TAG_NAME="v-test-$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::7}"
-        # BASE_URL="https://github.com/${REPO}/releases/download/${TAG_NAME}"
+        # 1. Genera il tag_name
+        if [ -z "${{ inputs.tag_name }}" ]; then
+          TAG_NAME="v-test-$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::7}"
+        else
+          TAG_NAME="v${{ inputs.tag_name }}"
+        fi
+
+        PRE_RELEASE=
+        if [ '${{ github.ref_name }}' = test ]; then
+          PRE_RELEASE="--prerelease"
+        fi
 
         # 2. Crea la release allegando tutti i file presenti in all-artifacts/
         gh release create "$TAG_NAME" all-artifacts/* \
-          --target test \
-          --prerelease \
+          --target '${{ github.ref_name }}' \
+          $PRE_RELEASE \
           --title "Test Build: $TAG_NAME" \
           --generate-notes
-    # - name: Crea la GitHub Release
-    #   uses: softprops/action-gh-release@v2
-    #   with:
-    #     tag_name: ${{ github.event.inputs.tag_name }}
-    #     files: ${{ env.deb_path }}
-    #     generate_release_notes: true
