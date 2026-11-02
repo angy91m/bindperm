@@ -1,6 +1,9 @@
 name: Build and Release Debian Package
 
 on:
+  push:
+    branches:
+    - test
   workflow_dispatch:
     inputs:
       tag_name:
