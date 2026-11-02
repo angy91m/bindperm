@@ -17,6 +17,7 @@ jobs:
     name: Build per ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
         - arch: amd64
